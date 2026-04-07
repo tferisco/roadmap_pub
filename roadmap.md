@@ -2,7 +2,7 @@
 
 > **Project**: TC ERP — Engineering & Production MRO System
 > **Platform**: ERPNext (Frappe Docker) + Apache Airflow
-> **Last Updated**: 2026-02-15
+> **Last Updated**: 2026-02-24
 
 Dokumen ini adalah rencana implementasi lengkap untuk sistem MRO ERP, mencakup modul, integrasi, roles & permissions, serta langkah verifikasi.
 
@@ -79,7 +79,34 @@ Capability Master (DOCX Template) + Order Data → DocConverter → Final PDF
 - [x] Setup LibreOffice headless (Dockerized `docconverter` service)
 - [x] Testing dengan sample orders (Header/Footer supported)
 
-### 2.3 Dependencies
+### 2.3 MinIO Object Storage ✅ `COMPLETE`
+
+| Item | Detail |
+|:-----|:-------|
+| **Service** | MinIO (S3-compatible, self-hosted) |
+| **Docker** | `minio/minio:latest` — port 9000 (API), 9001 (Console) |
+| **Bucket** | `mro` |
+| **Persistence** | Host bind mount `./minio-data` |
+| **Access** | Proxied via ERPNext API (no direct MinIO URL exposure) |
+
+**Folder Structure:**
+```
+mro/
+├── capability-master/{CAP-name}/maintenance-instructions/{template}.docx
+├── mro-order-input/{order-number}/generated/{output}.pdf
+└── mro-document/{doc-number}/revisions/{rev}.pdf
+```
+
+**Features:**
+- [x] MinIO service in `docker-compose.yml` dengan healthcheck
+- [x] `minio_storage.py` — upload, download, delete, list dengan structured paths
+- [x] `minio_file_hook.py` — auto-sync Capability Master MI uploads ke MinIO via doc_events
+- [x] `doc_generator.py` — generated PDF/DOCX langsung upload ke MinIO
+- [x] Proxy endpoint `serve_file` — PDF terbuka di browser, login required
+- [x] Migration script (`minio_migrate.py`) untuk file lama
+- [x] Fallback ke local filesystem jika MinIO unavailable
+
+### 2.4 Dependencies
 - SAP access credentials
 - Airflow server provisioning
 
@@ -360,5 +387,6 @@ Capability development workflow dan monitoring.
 |:--|:-------|:------|:---------|
 | 1 | Request SQL access untuk TMS | Phase 3 | 🔴 High |
 | 2 | Define Airflow server specs | Phase 2 | 🔴 High |
-| 3 | Configure Workflow pada Capability Master | Phase 5 | 🟡 Medium |
-| 4 | Setup user roles & permissions di ERPNext | All | 🟡 Medium |
+| 3 | Production MinIO credentials (ganti default) | Phase 2 | 🔴 High |
+| 4 | Configure Workflow pada Capability Master | Phase 5 | 🟡 Medium |
+| 5 | Setup user roles & permissions di ERPNext | All | 🟡 Medium |
